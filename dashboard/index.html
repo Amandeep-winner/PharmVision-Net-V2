@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prescription OCR Dashboard</title>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --ink: #14181f; --muted: #5d6675; --line: #e2e5ea;
+  --c1: #2a6df4; --c2: #e8833a; --c3: #1a9e8f; --bad: #c8372d; --good: #23863f; --warn: #b7791f;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1217; --card: #181d25; --ink: #eceff4; --muted: #9aa4b5; --line: #2a313c;
+    --c1: #6b9bff; --c2: #f0a064; --c3: #4cc7b8; --bad: #ff7a70; --good: #5ccf7b; --warn: #e5b45c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1217; --card: #181d25; --ink: #eceff4; --muted: #9aa4b5; --line: #2a313c;
+  --c1: #6b9bff; --c2: #f0a064; --c3: #4cc7b8; --bad: #ff7a70; --good: #5ccf7b; --warn: #e5b45c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 16px 64px; }
+header { padding: 40px 0 20px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+h1 { margin: 0 0 6px; font-size: 30px; letter-spacing: -0.02em; }
+header p { margin: 0; color: var(--muted); max-width: 680px; }
+button.theme { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; font: inherit; }
+nav { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); margin: 0 -16px 24px; padding: 10px 16px; display: flex; gap: 6px; overflow-x: auto; }
+nav a { color: var(--muted); text-decoration: none; padding: 6px 12px; border-radius: 999px; white-space: nowrap; font-size: 14px; }
+nav a:hover { background: var(--card); color: var(--ink); }
+section { margin-bottom: 44px; scroll-margin-top: 64px; }
+h2 { font-size: 20px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--muted); margin: 0 0 16px; }
+.grid { display: grid; gap: 16px; }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+.card h3 { margin: 0 0 4px; font-size: 15px; }
+.card .note { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.kpi .label { color: var(--muted); font-size: 13px; }
+.kpi .value { font-size: 34px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.kpi .hint { font-size: 13px; color: var(--muted); }
+.pill { display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill.bad { color: var(--bad); border-color: var(--bad); }
+.pill.good { color: var(--good); border-color: var(--good); }
+.flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.step { flex: 1 1 150px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; position: relative; }
+.step b { display: block; font-size: 13px; margin-bottom: 2px; }
+.step span { font-size: 12.5px; color: var(--muted); }
+.step .n { position: absolute; top: 8px; right: 10px; color: var(--muted); font-size: 12px; }
+svg { width: 100%; height: auto; display: block; overflow: visible; }
+svg text { fill: var(--muted); font-size: 11px; font-family: inherit; }
+svg .grid-line { stroke: var(--line); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+.tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+.tabs button { border: 1px solid var(--line); background: var(--card); color: var(--ink); padding: 6px 14px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 14px; }
+.tabs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 14px; }
+th { color: var(--muted); font-weight: 500; font-size: 13px; }
+td.num, th.num { text-align: right; }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.gallery figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 8px; cursor: zoom-in; }
+.gallery img { width: 100%; display: block; border-radius: 6px; background: #fff; }
+.gallery figcaption { font-size: 12.5px; color: var(--muted); padding: 6px 2px 0; }
+#lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.82); display: none; align-items: center; justify-content: center; z-index: 20; cursor: zoom-out; padding: 24px; }
+#lightbox.open { display: flex; }
+#lightbox img { max-width: 100%; max-height: 100%; background: #fff; border-radius: 8px; }
+pre { margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; white-space: pre-wrap; word-break: break-word; font-size: 12.5px; line-height: 1.45; }
+.finding { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.finding:last-child { border-bottom: 0; }
+.finding .tag { flex: 0 0 auto; margin-top: 2px; }
+#tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); padding: 5px 9px; border-radius: 6px; font-size: 12.5px; display: none; z-index: 30; }
+@media (max-width: 520px) { .g2 { grid-template-columns: 1fr; } h1 { font-size: 24px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Handwritten Prescription OCR</h1>
+    <p>Two approaches on the same data: a Tesseract OCR + fuzzy-match pipeline, and CNN classifiers (ResNet50, DenseNet121, ElasticNet CNN) over 78 medicine classes.</p>
+  </div>
+  <button class="theme" id="themeBtn" aria-label="Toggle theme">Toggle theme</button>
+</header>
+
+<nav>
+  <a href="#overview">Overview</a><a href="#pipeline">Pipeline</a><a href="#data">Data</a><a href="#ocr">OCR baseline</a>
+  <a href="#models">Models</a><a href="#detail">Model detail</a><a href="#findings">Findings</a><a href="#figures">Figures</a>
+</nav>
+
+<section id="overview">
+  <h2>Headline results</h2>
+  <p class="sub">Test split, 780 images, 78 classes (10 per class). Chance level is 1.3% accuracy and 0.50 AUC.</p>
+  <div class="grid g4" id="kpis"></div>
+</section>
+
+<section id="pipeline">
+  <h2>Pipeline</h2>
+  <p class="sub">What the notebook does, end to end.</p>
+  <div class="flow">
+    <div class="step"><span class="n">1</span><b>Load data</b><span>Dataset A: 4,680 labeled medicine crops. Dataset B: 129 full prescriptions.</span></div>
+    <div class="step"><span class="n">2</span><b>Detect ROIs</b><span>Adaptive threshold, dilate, contours. Top 12 text blocks.</span></div>
+    <div class="step"><span class="n">3</span><b>Tesseract OCR</b><span>Bilateral filter, PSM 6, upscale small crops.</span></div>
+    <div class="step"><span class="n">4</span><b>Fuzzy match</b><span>rapidfuzz token-set ratio against 78 names, cutoff 75.</span></div>
+    <div class="step"><span class="n">5</span><b>Weak NER</b><span>Regex for dosage and frequency, drug from lexicon.</span></div>
+    <div class="step"><span class="n">6</span><b>CNN classifiers</b><span>3 models, 3 epochs, 224px, AUC / F1 on val and test.</span></div>
+  </div>
+</section>
+
+<section id="data">
+  <h2>Datasets</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Dataset A split</h3><p class="note">Labeled medicine-name crops (images per split)</p><div id="splitChart"></div></div>
+    <div class="card"><h3>Dataset A samples</h3><p class="note">Random labeled crops from the train split</p><img src="img/a_samples.png" alt="Sample crops" style="width:100%;border-radius:6px;background:#fff"></div>
+  </div>
+</section>
+
+<section id="ocr">
+  <h2>OCR baseline (Tesseract + fuzzy match)</h2>
+  <p class="sub">Handwriting is far outside what Tesseract was trained on, so the matcher rarely finds the right name.</p>
+  <div class="grid g2">
+    <div class="card"><h3>Hit rate vs. chance</h3><p class="note">Dataset A: exact-label accuracy. Dataset B: any vocabulary medicine found.</p><div id="ocrChart"></div></div>
+    <div class="card"><h3>Sample OCR output (Dataset B)</h3><p class="note">Raw text returned for the first two prescriptions, with extracted entities</p><div id="ocrSamples"></div></div>
+  </div>
+</section>
+
+<section id="models">
+  <h2>Model comparison</h2>
+  <p class="sub">ResNet50 is the best of the three on every metric, but absolute scores are low for all of them.</p>
+  <div class="grid g2">
+    <div class="card"><h3>Test metrics</h3><p class="note">Macro AUC (OVR), macro F1 and accuracy on the test split</p><div class="legend" id="testLegend"></div><div id="testChart"></div></div>
+    <div class="card"><h3>Validation AUC per epoch</h3><p class="note">All models still improving at epoch 3 (training was cut at 3 epochs)</p><div class="legend" id="aucLegend"></div><div id="aucChart"></div></div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <table id="cmpTable"></table>
+  </div>
+</section>
+
+<section id="detail">
+  <h2>Model detail</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="grid g2">
+    <div class="card"><h3>Loss</h3><p class="note">Train vs. validation cross-entropy (random guess = ln 78 = 4.36)</p><div class="legend"><span><i style="background:var(--c1)"></i>train</span><span><i style="background:var(--c2)"></i>val</span></div><div id="lossChart"></div></div>
+    <div class="card"><h3>Macro F1</h3><p class="note">Train vs. validation per epoch</p><div class="legend"><span><i style="background:var(--c1)"></i>train</span><span><i style="background:var(--c2)"></i>val</span></div><div id="f1Chart"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Per-class test F1</h3><p class="note" id="pcNote"></p><div id="pcChart"></div></div>
+    <div class="card"><h3>Confusion matrix (test)</h3><p class="note">From the notebook run</p><img id="cmImg" alt="Confusion matrix" style="width:100%;border-radius:6px;background:#fff;max-width:520px;margin:0 auto;display:block"></div>
+  </div>
+</section>
+
+<section id="findings">
+  <h2>Findings</h2>
+  <div class="card" id="findList"></div>
+</section>
+
+<section id="figures">
+  <h2>Notebook figures</h2>
+  <p class="sub">Click any figure to enlarge.</p>
+  <div class="gallery" id="gallery"></div>
+</section>
+</div>
+
+<div id="lightbox"><img alt=""></div>
+<div id="tip"></div>
+<script src="data.js"></script>
+<script>
+const D = window.DATA, M = D.models;
+const NAMES = { resnet50: "ResNet50", densenet121: "DenseNet121", elasticnet_cnn: "ElasticNet CNN" };
+const COLORS = { resnet50: "var(--c1)", densenet121: "var(--c2)", elasticnet_cnn: "var(--c3)" };
+const order = Object.keys(M).sort((a, b) => M[b].test_auc - M[a].test_auc);
+const $ = id => document.getElementById(id);
+const pct = (v, d = 1) => (v * 100).toFixed(d) + "%";
+const NS = "http://www.w3.org/2000/svg";
+
+/* ---------- theme ---------- */
+const root = document.documentElement;
+$("themeBtn").onclick = () => {
+  const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  root.dataset.theme = dark ? "light" : "dark";
+};
+
+/* ---------- tooltip ---------- */
+const tip = $("tip");
+function bindTip(el, text) {
+  el.addEventListener("mousemove", e => { tip.textContent = text; tip.style.display = "block"; tip.style.left = e.clientX + 12 + "px"; tip.style.top = e.clientY + 12 + "px"; });
+  el.addEventListener("mouseleave", () => tip.style.display = "none");
+}
+
+/* ---------- tiny SVG helpers ---------- */
+function svg(w, h) { const s = document.createElementNS(NS, "svg"); s.setAttribute("viewBox", `0 0 ${w} ${h}`); return s; }
+function el(parent, tag, attrs = {}, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (text !== undefined) e.textContent = text;
+  parent.appendChild(e); return e;
+}
+function axes(s, w, h, pad, ymax, fmt, ticks = 4) {
+  for (let i = 0; i <= ticks; i++) {
+    const v = ymax * i / ticks, y = h - pad.b - (h - pad.t - pad.b) * i / ticks;
+    el(s, "line", { x1: pad.l, x2: w - pad.r, y1: y, y2: y, class: "grid-line" });
+    el(s, "text", { x: pad.l - 6, y: y + 4, "text-anchor": "end" }, fmt(v));
+  }
+}
+function legend(id, keys) {
+  $(id).innerHTML = keys.map(k => `<span><i style="background:${COLORS[k]}"></i>${NAMES[k]}</span>`).join("");
+}
+
+/* ---------- KPIs ---------- */
+const best = M[order[0]];
+const kpis = [
+  { l: "Best test AUC", v: best.test_auc.toFixed(3), h: `${NAMES[order[0]]} (chance 0.500)`, t: "good" },
+  { l: "Best test macro F1", v: best.test_f1.toFixed(3), h: `${NAMES[order[0]]}`, t: "bad" },
+  { l: "Best test accuracy", v: pct(best.test_acc, 0), h: "vs 1.3% chance (78 classes)", t: "bad" },
+  { l: "OCR accuracy, Dataset A", v: pct(D.ocr.a.acc), h: `${D.ocr.a.n} crops, Tesseract + fuzzy`, t: "bad" },
+  { l: "OCR hit rate, Dataset B", v: pct(D.ocr.b.hit_rate, 0), h: `${D.ocr.b.n} full prescriptions`, t: "bad" },
+];
+$("kpis").innerHTML = kpis.map(k => `<div class="card kpi"><div class="label">${k.l}</div><div class="value">${k.v}</div><div class="hint">${k.h}</div></div>`).join("");
+
+/* ---------- split chart ---------- */
+(function () {
+  const rows = [["Train", D.dataset.train], ["Val", D.dataset.val], ["Test", D.dataset.test]];
+  const w = 460, h = 190, pad = { l: 50, r: 16, t: 10, b: 28 }, s = svg(w, h), max = 3500;
+  axes(s, w, h, pad, max, v => v.toLocaleString());
+  const bw = (w - pad.l - pad.r) / rows.length;
+  rows.forEach(([n, v], i) => {
+    const bh = (h - pad.t - pad.b) * v / max, x = pad.l + i * bw + bw * 0.25;
+    const r = el(s, "rect", { x, y: h - pad.b - bh, width: bw * 0.5, height: bh, rx: 3, fill: "var(--c1)" });
+    bindTip(r, `${n}: ${v.toLocaleString()} images`);
+    el(s, "text", { x: x + bw * 0.25, y: h - 10, "text-anchor": "middle" }, n);
+    el(s, "text", { x: x + bw * 0.25, y: h - pad.b - bh - 5, "text-anchor": "middle", style: "fill:var(--ink)" }, v.toLocaleString());
+  });
+  $("splitChart").appendChild(s);
+})();
+
+/* ---------- OCR chart + samples ---------- */
+(function () {
+  const rows = [["Dataset A accuracy", D.ocr.a.acc, "var(--c1)"], ["Dataset B hit rate", D.ocr.b.hit_rate, "var(--c2)"], ["Random guess (A)", 1 / 78, "var(--muted)"]];
+  const w = 460, h = 170, pad = { l: 130, r: 50, t: 8, b: 24 }, s = svg(w, h), max = 0.1;
+  const bh = 26, gap = 18;
+  rows.forEach(([n, v, c], i) => {
+    const y = pad.t + i * (bh + gap), len = (w - pad.l - pad.r) * v / max;
+    el(s, "text", { x: pad.l - 8, y: y + bh / 2 + 4, "text-anchor": "end", style: "fill:var(--ink)" }, n);
+    const r = el(s, "rect", { x: pad.l, y, width: len, height: bh, rx: 3, fill: c });
+    bindTip(r, `${n}: ${pct(v, 2)}`);
+    el(s, "text", { x: pad.l + len + 6, y: y + bh / 2 + 4, style: "fill:var(--ink)" }, pct(v, 1));
+  });
+  el(s, "text", { x: pad.l, y: h - 4 }, "axis capped at 10%");
+  $("ocrChart").appendChild(s);
+  $("ocrSamples").innerHTML = D.ocr.samples.map(x => `<p style="margin:0 0 4px"><b>${x.file}</b> <span class="pill ${x.entities.length ? "good" : "bad"}">${x.entities.length} entities</span></p><pre>${x.ocr_preview.replace(/</g, "&lt;")}</pre><div style="height:10px"></div>`).join("");
+})();
+
+/* ---------- test metrics grouped bars ---------- */
+(function () {
+  legend("testLegend", order);
+  const metrics = [["AUC", "test_auc"], ["Macro F1", "test_f1"], ["Accuracy", "test_acc"]];
+  const w = 520, h = 260, pad = { l: 40, r: 10, t: 12, b: 30 }, s = svg(w, h);
+  axes(s, w, h, pad, 1, v => v.toFixed(1), 5);
+  const gw = (w - pad.l - pad.r) / metrics.length, bw = gw / 5;
+  metrics.forEach(([label, key], gi) => {
+    order.forEach((m, mi) => {
+      const v = M[m][key], bh = (h - pad.t - pad.b) * v, x = pad.l + gi * gw + gw * 0.1 + mi * (bw + 4);
+      const r = el(s, "rect", { x, y: h - pad.b - bh, width: bw, height: Math.max(bh, 1), rx: 2, fill: COLORS[m] });
+      bindTip(r, `${NAMES[m]} ${label}: ${v.toFixed(3)}`);
+      el(s, "text", { x: x + bw / 2, y: h - pad.b - bh - 4, "text-anchor": "middle", style: "fill:var(--ink);font-size:10.5px" }, v.toFixed(2));
+    });
+    el(s, "text", { x: pad.l + gi * gw + gw / 2, y: h - 10, "text-anchor": "middle", style: "fill:var(--ink)" }, label);
+  });
+  const y5 = h - pad.b - (h - pad.t - pad.b) * 0.5;
+  el(s, "line", { x1: pad.l, x2: w - pad.r, y1: y5, y2: y5, stroke: "var(--bad)", "stroke-dasharray": "4 4" });
+  el(s, "text", { x: w - pad.r, y: y5 - 4, "text-anchor": "end", style: "fill:var(--bad)" }, "AUC chance = 0.5");
+  $("testChart").appendChild(s);
+})();
+
+/* ---------- line chart helper ---------- */
+function lineChart(target, series, { ymin, ymax, fmt }) {
+  const w = 520, h = 240, pad = { l: 44, r: 14, t: 12, b: 28 }, s = svg(w, h);
+  const span = ymax - ymin, ticks = 4;
+  for (let i = 0; i <= ticks; i++) {
+    const v = ymin + span * i / ticks, y = h - pad.b - (h - pad.t - pad.b) * i / ticks;
+    el(s, "line", { x1: pad.l, x2: w - pad.r, y1: y, y2: y, class: "grid-line" });
+    el(s, "text", { x: pad.l - 6, y: y + 4, "text-anchor": "end" }, fmt(v));
+  }
+  const xs = e => pad.l + (w - pad.l - pad.r) * (e - 1) / 2 * 0.9 + 20;
+  const ys = v => h - pad.b - (h - pad.t - pad.b) * (v - ymin) / span;
+  [1, 2, 3].forEach(e => el(s, "text", { x: xs(e), y: h - 8, "text-anchor": "middle" }, "epoch " + e));
+  series.forEach(({ name, color, values, dash }) => {
+    el(s, "polyline", { points: values.map((v, i) => `${xs(i + 1)},${ys(v)}`).join(" "), fill: "none", stroke: color, "stroke-width": 2.5, "stroke-linejoin": "round", ...(dash ? { "stroke-dasharray": dash } : {}) });
+    values.forEach((v, i) => { const c = el(s, "circle", { cx: xs(i + 1), cy: ys(v), r: 4.5, fill: color, stroke: "var(--card)", "stroke-width": 1.5 }); bindTip(c, `${name}, epoch ${i + 1}: ${fmt(v, 3)}`); });
+  });
+  target.innerHTML = ""; target.appendChild(s);
+}
+
+const ep = (m, k) => M[m].epochs.map(e => e[k]);
+legend("aucLegend", order);
+lineChart($("aucChart"), order.map(m => ({ name: NAMES[m], color: COLORS[m], values: ep(m, "val_auc") })), { ymin: 0.5, ymax: 0.9, fmt: (v, d = 2) => v.toFixed(d) });
+
+/* ---------- comparison table ---------- */
+$("cmpTable").innerHTML = `<tr><th>Model</th><th class="num">Trainable params</th><th class="num">Best val AUC</th><th class="num">Test AUC</th><th class="num">Test macro F1</th><th class="num">Test accuracy</th><th class="num">Sec / epoch</th></tr>` +
+  order.map(m => {
+    const e = M[m].epochs, bv = Math.max(...e.map(x => x.val_auc)), sec = e.reduce((a, x) => a + x.sec, 0) / e.length;
+    return `<tr><td><i style="display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:8px;background:${COLORS[m]}"></i>${NAMES[m]}</td><td class="num">${M[m].trainable.toLocaleString()}</td><td class="num">${bv.toFixed(3)}</td><td class="num">${M[m].test_auc.toFixed(3)}</td><td class="num">${M[m].test_f1.toFixed(3)}</td><td class="num">${pct(M[m].test_acc)}</td><td class="num">${sec.toFixed(1)}s</td></tr>`;
+  }).join("");
+
+/* ---------- per-model detail ---------- */
+let current = order[0];
+function renderDetail() {
+  [...$("tabs").children].forEach(b => b.setAttribute("aria-pressed", b.dataset.m === current));
+  const loss = [{ name: "train", color: "var(--c1)", values: ep(current, "train_loss") }, { name: "val", color: "var(--c2)", values: ep(current, "val_loss") }];
+  lineChart($("lossChart"), loss, { ymin: 3.8, ymax: 4.6, fmt: (v, d = 2) => v.toFixed(d) });
+  const f1 = [{ name: "train", color: "var(--c1)", values: ep(current, "train_f1") }, { name: "val", color: "var(--c2)", values: ep(current, "val_f1") }];
+  lineChart($("f1Chart"), f1, { ymin: 0, ymax: 0.2, fmt: (v, d = 2) => v.toFixed(d) });
+
+  const pc = M[current].per_class, nz = pc.filter(c => c.f1 > 0).length;
+  $("pcNote").textContent = `${nz} of ${pc.length} classes have F1 above zero. ${pc.length - nz} are never predicted correctly.`;
+  const w = 520, h = 220, pad = { l: 36, r: 8, t: 10, b: 26 }, s = svg(w, h), max = 0.6;
+  axes(s, w, h, pad, max, v => v.toFixed(1));
+  const bw = (w - pad.l - pad.r) / pc.length;
+  pc.forEach((c, i) => {
+    const bh = (h - pad.t - pad.b) * Math.min(c.f1, max) / max;
+    const r = el(s, "rect", { x: pad.l + i * bw + 0.5, y: h - pad.b - bh, width: Math.max(bw - 1, 1), height: Math.max(bh, 0.5), fill: COLORS[current] });
+    bindTip(r, `Class ${c.cls}: F1 ${c.f1.toFixed(2)} (P ${c.precision.toFixed(2)}, R ${c.recall.toFixed(2)})`);
+  });
+  el(s, "text", { x: w / 2, y: h - 6, "text-anchor": "middle" }, "class id 0 to 77");
+  $("pcChart").innerHTML = ""; $("pcChart").appendChild(s);
+  $("cmImg").src = `img/${current}_cm.png`;
+}
+order.forEach(m => {
+  const b = document.createElement("button"); b.textContent = NAMES[m]; b.dataset.m = m;
+  b.onclick = () => { current = m; renderDetail(); }; $("tabs").appendChild(b);
+});
+renderDetail();
+
+/* ---------- findings ---------- */
+const findings = [
+  ["good", "Result", `Transfer learning helps: ResNet50 reaches test AUC ${M.resnet50.test_auc.toFixed(2)} against ${M.elasticnet_cnn.test_auc.toFixed(2)} for the from-scratch CNN, with only the final layer trained.`],
+  ["bad", "Weak", `Accuracy is ${pct(M.resnet50.test_acc, 0)} for the best model and ${pct(D.ocr.a.acc)} for OCR matching. Both are far from usable for a medicine-name task.`],
+  ["bad", "Gap", `Val AUC (${Math.max(...ep("resnet50", "val_auc")).toFixed(2)}) is well above test AUC (${M.resnet50.test_auc.toFixed(2)}) for ResNet50. Both splits have only 10 images per class, so these numbers are noisy, and the val figure should be read as optimistic.`],
+  ["warn", "Underfit", "Train and validation curves track each other and are still improving at epoch 3. The models are underfit, not overfit, so more epochs and unfreezing the backbone are the obvious next steps."],
+  ["warn", "OCR", "Tesseract returns noise on cursive handwriting (see sample output). A handwriting-specific recognizer (TrOCR, CRNN) would replace both the OCR and fuzzy-match steps."],
+  ["warn", "Labels", "Dataset B has no labels, so its 5% hit rate cannot be turned into accuracy. A small hand-labeled subset would make that number meaningful."],
+];
+$("findList").innerHTML = findings.map(([t, tag, txt]) => `<div class="finding"><span class="pill ${t === "warn" ? "" : t} tag">${tag}</span><span>${txt}</span></div>`).join("");
+
+/* ---------- gallery ---------- */
+const figs = [
+  ["a_train_dist", "Dataset A: train class distribution"], ["a_test_dist", "Dataset A: test class distribution"],
+  ["v_width", "Image width distribution"], ["v_height", "Image height distribution"],
+  ["ocr_len_hist", "OCR text length (Dataset A)"], ["ocr_score_hist", "Fuzzy match score (Dataset A)"],
+  ["ocr_confusion", "OCR-match confusion matrix"], ["b_len_hist", "OCR text length (Dataset B)"], ["b_score_hist", "Match score (Dataset B hits)"],
+  ...order.flatMap(m => [[`${m}_loss`, `${NAMES[m]}: loss`], [`${m}_auc`, `${NAMES[m]}: AUC`], [`${m}_f1`, `${NAMES[m]}: F1`], [`${m}_cm`, `${NAMES[m]}: confusion matrix`]]),
+];
+$("gallery").innerHTML = figs.map(([f, c]) => `<figure><img loading="lazy" src="img/${f}.png" alt="${c}"><figcaption>${c}</figcaption></figure>`).join("");
+const lb = $("lightbox");
+document.addEventListener("click", e => {
+  const img = e.target.closest(".gallery img");
+  if (img) { lb.querySelector("img").src = img.src; lb.classList.add("open"); }
+  else if (lb.contains(e.target)) lb.classList.remove("open");
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape") lb.classList.remove("open"); });
+</script>
+</body>
+</html>
